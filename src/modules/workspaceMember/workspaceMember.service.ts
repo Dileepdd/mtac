@@ -1,6 +1,6 @@
-import { WorkspaceMemberModel } from "./workspaceMember.model";
-import { RoleModel } from "../role/role.model";
-import { UserModel } from "../user/user.model";
+import { WorkspaceMemberModel } from "./workspaceMember.model.js";
+import { RoleModel } from "../role/role.model.js";
+import { UserModel } from "../user/user.model.js";
 
 export const addMember = async ({
   userId,
@@ -56,13 +56,21 @@ export const addMember = async ({
     throw new Error("You cannot assign this role");
   }
 
-  const member = await WorkspaceMemberModel.create({
-    user_id: userId,
-    workspace_id: workspaceId,
-    role_id: role._id,
-    created_by: currentUserId,
-    updated_by: currentUserId,
-  });
+  let member;
+  try {
+    member = await WorkspaceMemberModel.create({
+      user_id: userId,
+      workspace_id: workspaceId,
+      role_id: role._id,
+      created_by: currentUserId,
+      updated_by: currentUserId,
+    });
+  } catch (err: any) {
+    if (isDuplicateKeyError(err)) {
+      throw new Error("User already exists");
+    }
+    throw err;
+  }
 
   return member;
 };
@@ -126,8 +134,20 @@ export const getMembersService = async ({
 }) => {
   const skip = (page - 1) * limit;
 
-  const allMembers = await WorkspaceMemberModel.find({
+  // Get subordinate role IDs (roles with higher level number = lower rank)
+  const subordinateRoles = await RoleModel.find({
     workspace_id: workspaceId,
+    level: { $gt: currentUserLevel },
+  })
+    .select("_id")
+    .lean();
+
+  const subordinateRoleIds = subordinateRoles.map((r) => r._id);
+
+  // Fetch self separately (lightweight)
+  const self = await WorkspaceMemberModel.findOne({
+    workspace_id: workspaceId,
+    user_id: currentUserId,
   })
     .select("user_id role_id created_at")
     .populate<{ user_id: { _id: string; name: string; email: string } }>({
@@ -140,19 +160,33 @@ export const getMembersService = async ({
     })
     .lean();
 
-  const self = allMembers.find(
-    (m) => m.user_id._id.toString() === currentUserId
-  );
-  const subordinates = allMembers.filter(
-    (m) => m.role_id.level > currentUserLevel
-  );
-
-  const total = subordinates.length;
-  const paginated = subordinates.slice(skip, skip + limit);
+  // Count + paginate subordinates at DB level
+  const [total, members] = await Promise.all([
+    WorkspaceMemberModel.countDocuments({
+      workspace_id: workspaceId,
+      role_id: { $in: subordinateRoleIds },
+    }),
+    WorkspaceMemberModel.find({
+      workspace_id: workspaceId,
+      role_id: { $in: subordinateRoleIds },
+    })
+      .select("user_id role_id created_at")
+      .populate<{ user_id: { _id: string; name: string; email: string } }>({
+        path: "user_id",
+        select: "name email",
+      })
+      .populate<{ role_id: { _id: string; name: string; level: number } }>({
+        path: "role_id",
+        select: "name level",
+      })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+  ]);
 
   return {
     self,
-    members: paginated,
+    members,
     pagination: {
       total,
       page,
@@ -161,3 +195,5 @@ export const getMembersService = async ({
     },
   };
 };
+
+const isDuplicateKeyError = (err: any) => err?.code === 11000;

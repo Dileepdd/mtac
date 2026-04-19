@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { workspaceMiddleware } from "../../middlewares/workspace.middleware";
-import { checkPermission } from "../../middlewares/permission.middleware";
+import { workspaceMiddleware } from "../../middlewares/workspace.middleware.js";
+import { checkPermission } from "../../middlewares/permission.middleware.js";
 
-import { create, get, getAll } from "./workspace.controller";
+import { create, get, getAll } from "./workspace.controller.js";
 
 const router = Router();
 

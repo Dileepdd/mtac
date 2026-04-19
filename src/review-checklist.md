@@ -1,0 +1,6 @@
+- [x] 1) Add centralized error foundation (`AppError` + global error middleware)
+- [x] 2) Migrate controllers to throw typed errors instead of ad-hoc status mapping
+- [ ] 3) Finalize auth strategy (access-only or full refresh flow)
+- [ ] 4) Add login rate limiter and auth hardening limits
+- [ ] 5) Stabilize pagination ordering and add ObjectId input validation
+- [ ] 6) Implement Redis permission cache from `src/todo`

@@ -5,7 +5,6 @@ const workspaceSchema = new Schema<IWorkspace>(
   {
     name: {
       type: String,
-      unique: true,
       required: true,
       trim: true,
     },
@@ -23,5 +22,7 @@ const workspaceSchema = new Schema<IWorkspace>(
     versionKey: false,
   }
 );
+
+workspaceSchema.index({ name: 1, created_by: 1 }, { unique: true });
 
 export const WorkspaceModel = model<IWorkspace>("Workspace", workspaceSchema);

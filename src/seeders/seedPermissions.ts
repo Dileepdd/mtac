@@ -19,8 +19,10 @@ const seedPermissions = async () => {
 
     console.log("seeding completed");
     console.log("result:", result);
+    await mongoose.disconnect();
   } catch (err: any) {
     console.error("Seed Error", err);
+    await mongoose.disconnect();
     process.exit(1);
   }
 };

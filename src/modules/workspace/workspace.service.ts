@@ -7,71 +7,157 @@ import { ROLE_CONFIG } from "../../config/roles.js";
 import { IRole } from "../role/roles.types.js";
 
 export const createWorkspace = async (userId: string, name: string) => {
-  const permissions = await PermissionModel.find().select("_id name").lean();
+  const session = await mongoose.startSession();
+
+  try {
+    try {
+      let createdWorkspace: { _id: unknown; name: string } | null = null;
+
+      await session.withTransaction(async () => {
+        createdWorkspace = await createWorkspaceGraph(userId, name, session);
+      });
+
+      if (!createdWorkspace) {
+        throw new Error("Workspace creation failed");
+      }
+
+      const workspaceResult = createdWorkspace as { _id: unknown; name: string };
+
+      return {
+        id: workspaceResult._id,
+        name: workspaceResult.name,
+      };
+    } catch (err: any) {
+      if (!isTransactionUnsupportedError(err)) {
+        throw err;
+      }
+
+      // Local standalone MongoDB does not support transactions.
+      // Fallback keeps local development usable while production can run with transactions.
+      const createdWorkspace = await createWorkspaceGraph(userId, name);
+      return {
+        id: createdWorkspace._id,
+        name: createdWorkspace.name,
+      };
+    }
+  } finally {
+    await session.endSession();
+  }
+};
+
+const createWorkspaceGraph = async (
+  userId: string,
+  name: string,
+  session?: mongoose.ClientSession
+) => {
+  const permissionsQuery = PermissionModel.find().select("_id name");
+  const permissions = session
+    ? await permissionsQuery.session(session).lean()
+    : await permissionsQuery.lean();
 
   if (!permissions.length) {
     throw new Error("Permissions not seeded");
   }
 
-  const workspaceExists = await WorkspaceModel.findOne({ name });
+  const workspaceExistsQuery = WorkspaceModel.findOne({
+    name,
+    created_by: userId,
+  });
+  const workspaceExists = session
+    ? await workspaceExistsQuery.session(session).lean()
+    : await workspaceExistsQuery.lean();
 
   if (workspaceExists) {
     throw new Error("workspace with this name already exists");
   }
 
-  const workspace = await WorkspaceModel.create({ name, created_by: userId });
+  const [workspace] = session
+    ? await WorkspaceModel.create([{ name, created_by: userId }], { session })
+    : await WorkspaceModel.create([{ name, created_by: userId }]);
+
   const workspaceId = workspace._id;
-
   const permMap = new Map(permissions.map((p) => [p.name, p._id]));
-
   const createdRoles: IRole[] = [];
 
   for (const [roleName, roleData] of Object.entries(ROLE_CONFIG)) {
-    let permissionIds;
+    const permissionIds =
+      roleData.permissions === "ALL"
+        ? permissions.map((p) => p._id)
+        : roleData.permissions.map((permissionName) => {
+            const id = permMap.get(permissionName);
+            if (!id) {
+              throw new Error(`Permission not found: ${permissionName}`);
+            }
+            return id;
+          });
 
-    if (roleData.permissions === "ALL") {
-      permissionIds = permissions.map((p) => p._id);
-    } else {
-      permissionIds = roleData.permissions.map((name) => {
-        const id = permMap.get(name);
-        if (!id) {
-          throw new Error(`Permission not found: ${name}`);
-        }
-        return id;
-      });
-    }
-
-    const [role] = await RoleModel.create([
-      {
-        name: roleName,
-        level: roleData.level,
-        workspace_id: workspaceId,
-        created_by: userId,
-        permissions: permissionIds,
-      },
-    ]);
+    const [role] = session
+      ? await RoleModel.create(
+          [
+            {
+              name: roleName,
+              level: roleData.level,
+              workspace_id: workspaceId,
+              created_by: userId,
+              permissions: permissionIds,
+            },
+          ],
+          { session }
+        )
+      : await RoleModel.create([
+          {
+            name: roleName,
+            level: roleData.level,
+            workspace_id: workspaceId,
+            created_by: userId,
+            permissions: permissionIds,
+          },
+        ]);
 
     createdRoles.push(role);
   }
 
   const adminRole = createdRoles.find((r) => r.name === "admin");
-
   if (!adminRole) {
     throw new Error("Admin role not created");
   }
 
-  await WorkspaceMemberModel.create({
-    user_id: userId,
-    workspace_id: workspaceId,
-    role_id: adminRole._id,
-    created_by: userId,
-    updated_by: userId,
-  });
+  if (session) {
+    await WorkspaceMemberModel.create(
+      [
+        {
+          user_id: userId,
+          workspace_id: workspaceId,
+          role_id: adminRole._id,
+          created_by: userId,
+          updated_by: userId,
+        },
+      ],
+      { session }
+    );
+  } else {
+    await WorkspaceMemberModel.create({
+      user_id: userId,
+      workspace_id: workspaceId,
+      role_id: adminRole._id,
+      created_by: userId,
+      updated_by: userId,
+    });
+  }
 
   return {
-    id: workspace._id,
+    _id: workspace._id,
     name: workspace.name,
   };
+};
+
+const isTransactionUnsupportedError = (err: any) => {
+  const message = err?.message?.toLowerCase?.() ?? "";
+  return (
+    message.includes("transaction numbers are only allowed on a replica set member") ||
+    message.includes("replica set") ||
+    err?.codeName === "IllegalOperation"
+  );
 };
 
 export const getWorkspace = async (workspaceId: string) => {

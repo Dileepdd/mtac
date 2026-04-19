@@ -1,10 +1,13 @@
 // config/env.ts
 import dotenv from "dotenv";
-dotenv.config({ path: "./.env" }); // ← move it here
+import { z } from "zod";
+dotenv.config({ path: "./.env" });
 
-export const env = {
-  PORT: process.env.PORT || "3000",
-  JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET as string,
-  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET as string,
-  MONGO_CONNECTION_URL: process.env.MONGO_CONNECTION_URL as string,
-};
+const envSchema = z.object({
+  PORT: z.string().default("3000"),
+  JWT_ACCESS_SECRET: z.string().min(1, "JWT_ACCESS_SECRET is required"),
+  JWT_REFRESH_SECRET: z.string().min(1, "JWT_REFRESH_SECRET is required"),
+  MONGO_CONNECTION_URL: z.string().min(1, "MONGO_CONNECTION_URL is required"),
+});
+
+export const env = envSchema.parse(process.env);

@@ -20,6 +20,16 @@ const workspaceMemberSchema = new Schema<IWorkspaceMember>(
       required: true,
       ref: "Role",
     },
+    created_by: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    updated_by: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
   {
     timestamps: {
@@ -29,6 +39,9 @@ const workspaceMemberSchema = new Schema<IWorkspaceMember>(
     versionKey: false,
   }
 );
+
+workspaceMemberSchema.index({ workspace_id: 1, user_id: 1 }, { unique: true });
+workspaceMemberSchema.index({ workspace_id: 1, role_id: 1 });
 
 export const WorkspaceMemberModel = model<IWorkspaceMember>(
   "WorkspaceMember",

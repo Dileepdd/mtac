@@ -1,30 +1,22 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
+import { ZodError } from "zod";
+import { AppError } from "../../errors/appError.js";
 import {
   addMember,
   getMembersService,
   updateMember,
-} from "./workspaceMember.service";
+} from "./workspaceMember.service.js";
 import {
   addMemberSchema,
   updateMemberSchema,
-} from "./workspaceMember.validation";
+} from "./workspaceMember.validation.js";
 
-export const add = async (req: Request, res: Response) => {
+export const add = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = addMemberSchema.parse(req.body);
 
-    if (!req.user?.id || !req.workspace) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
     if (!req.user?.id || !req.workspace || req.workspace.level === undefined) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
+      return next(new AppError("Unauthorized", 401, "UNAUTHORIZED"));
     }
 
     const { userId, roleId } = body;
@@ -43,17 +35,21 @@ export const add = async (req: Request, res: Response) => {
       data: member,
     });
   } catch (err: any) {
-    return res.status(400).json({
-      success: false,
-      message: err.message,
-    });
+    if (err instanceof ZodError) {
+      return next(new AppError("Validation failed", 400, "VALIDATION_ERROR", err.issues));
+    }
+    return next(mapWorkspaceMemberError(err));
   }
 };
 
-export const update = async (req: Request, res: Response) => {
+export const update = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     if (!req.user?.id || !req.workspace || req.workspace.level === undefined) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return next(new AppError("Unauthorized", 401, "UNAUTHORIZED"));
     }
 
     const body = updateMemberSchema.parse(req.body);
@@ -72,14 +68,21 @@ export const update = async (req: Request, res: Response) => {
       data: member,
     });
   } catch (err: any) {
-    return res.status(400).json({ success: false, message: err.message });
+    if (err instanceof ZodError) {
+      return next(new AppError("Validation failed", 400, "VALIDATION_ERROR", err.issues));
+    }
+    return next(mapWorkspaceMemberError(err));
   }
 };
 
-export const getMembers = async (req: Request, res: Response) => {
+export const getMembers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     if (!req.user?.id || !req.workspace || req.workspace.level === undefined) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return next(new AppError("Unauthorized", 401, "UNAUTHORIZED"));
     }
 
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -102,6 +105,25 @@ export const getMembers = async (req: Request, res: Response) => {
       data: members,
     });
   } catch (err: any) {
-    return res.status(400).json({ success: false, message: err.message });
+    return next(mapWorkspaceMemberError(err));
   }
+};
+
+const mapWorkspaceMemberError = (err: any) => {
+  const message = err?.message || "Workspace member operation failed";
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("not found")) {
+    return new AppError(message, 404, "NOT_FOUND");
+  }
+  if (normalized.includes("already exists")) {
+    return new AppError(message, 409, "ALREADY_EXISTS");
+  }
+  if (normalized.includes("cannot")) {
+    return new AppError(message, 403, "FORBIDDEN");
+  }
+  if (normalized.includes("invalid")) {
+    return new AppError(message, 400, "BAD_REQUEST");
+  }
+  return new AppError(message, 500, "WORKSPACE_MEMBER_FAILED");
 };
