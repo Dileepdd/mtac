@@ -7,14 +7,20 @@ import { ROLE_CONFIG } from "../../config/roles.js";
 import { IRole } from "../role/roles.types.js";
 
 export const createWorkspace = async (userId: string, name: string) => {
-  const workspace = await WorkspaceModel.create({ name, created_by: userId });
-  const workspaceId = workspace._id;
-
   const permissions = await PermissionModel.find().select("_id name").lean();
 
   if (!permissions.length) {
     throw new Error("Permissions not seeded");
   }
+
+  const workspaceExists = await WorkspaceModel.findOne({ name });
+
+  if (workspaceExists) {
+    throw new Error("workspace with this name already exists");
+  }
+
+  const workspace = await WorkspaceModel.create({ name, created_by: userId });
+  const workspaceId = workspace._id;
 
   const permMap = new Map(permissions.map((p) => [p.name, p._id]));
 
@@ -82,4 +88,27 @@ export const getWorkspace = async (workspaceId: string) => {
   }
 
   return workspace;
+};
+
+export const getAllWorkspaces = async (userId: string) => {
+  const memberships = await WorkspaceMemberModel.find({ user_id: userId })
+    .select("workspace_id role_id")
+    .populate<{
+      workspace_id: { _id: string; name: string; created_at: Date };
+    }>({
+      path: "workspace_id",
+      select: "name created_at",
+    })
+    .populate<{ role_id: { _id: string; name: string } }>({
+      path: "role_id",
+      select: "name",
+    })
+    .lean();
+
+  return memberships.map((m) => ({
+    id: m.workspace_id._id,
+    name: m.workspace_id.name,
+    created_at: m.workspace_id.created_at,
+    role: m.role_id.name,
+  }));
 };

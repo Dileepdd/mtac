@@ -1,13 +1,13 @@
-import { User } from "../user/user.model.js";
+import { UserModel } from "../user/user.model.js";
 import { RegisterDTO, LogInDTO } from "./auth.validation.js";
-import { generateAccessToken, generateRefreshToken } from "../../config/jwt.js";
+import { generateAccessToken, generateRefreshToken } from "../../utils/jwt.js";
 import { getNextUserCode } from "../counter/counter.service.js";
 import bcrypt from "bcrypt";
 
 export const registerUser = async (data: RegisterDTO) => {
   const { name, email, password } = data;
 
-  const existedUser = await User.findOne({ email });
+  const existedUser = await UserModel.findOne({ email });
 
   if (existedUser) {
     throw new Error("User already exists");
@@ -16,7 +16,7 @@ export const registerUser = async (data: RegisterDTO) => {
   const hashedPassword = await bcrypt.hash(password, 10);
   const user_code = await getNextUserCode();
 
-  const user = await User.create({
+  const user = await UserModel.create({
     name,
     email,
     password: hashedPassword,
@@ -29,7 +29,7 @@ export const registerUser = async (data: RegisterDTO) => {
 export const loginUser = async (data: LogInDTO) => {
   const { email, password } = data;
 
-  let user = await User.findOne({ email }).select("+password");
+  let user = await UserModel.findOne({ email }).select("+password");
 
   if (!user) {
     throw new Error("Invalid email or password");

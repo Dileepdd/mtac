@@ -3,8 +3,8 @@ export const DEFAULT_PERMISSIONS = [
   { name: "VIEW_WORKSPACE" },
   { name: "UPDATE_WORKSPACE" },
   { name: "DELETE_WORKSPACE" },
-  { name: "INVITE_USER" },
-  { name: "REMOVE_USER" },
+  { name: "ADD_MEMBER" },
+  { name: "REMOVE_MEMBER" },
 
   // 👥 Members (IMPORTANT ADDITION)
   { name: "VIEW_MEMBERS" },

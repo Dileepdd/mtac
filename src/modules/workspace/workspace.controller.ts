@@ -1,6 +1,11 @@
 import { Request, Response } from "express";
-import { createWorkspace, getWorkspace } from "./workspace.service.js";
+import {
+  createWorkspace,
+  getWorkspace,
+  getAllWorkspaces,
+} from "./workspace.service.js";
 import { createWorkspaceSchema } from "./workspace.validation.js";
+import { ZodError } from "zod";
 
 export const create = async (req: Request, res: Response) => {
   try {
@@ -11,8 +16,7 @@ export const create = async (req: Request, res: Response) => {
       });
     }
 
-    const body = createWorkspaceSchema.parse(req.body);
-    const { name } = body;
+    const { name } = createWorkspaceSchema.parse(req.body);
 
     const workspace = await createWorkspace(req.user.id, name);
 
@@ -22,9 +26,31 @@ export const create = async (req: Request, res: Response) => {
       data: workspace,
     });
   } catch (err: any) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: err.issues,
+      });
+    }
+
+    if (err.message === "workspace with this name already exists") {
+      return res.status(409).json({
+        success: false,
+        message: err.message,
+      });
+    }
+
+    if (err.message === "Permissions not seeded") {
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error",
+      });
+    }
+
     return res.status(400).json({
       success: false,
-      message: err.message,
+      message: err.message || "Something went wrong",
     });
   }
 };
@@ -53,5 +79,24 @@ export const get = async (req: Request, res: Response) => {
       success: false,
       message: err.message,
     });
+  }
+};
+
+export const getAll = async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const workspaces = await getAllWorkspaces(req.user.id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Workspaces fetched successfully",
+      data: workspaces,
+    });
+  } catch (err: any) {
+    console.error("GET ALL WORKSPACES ERROR:", err);
+    return res.status(400).json({ success: false, message: err.message });
   }
 };

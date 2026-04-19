@@ -1,15 +1,14 @@
-export {};
+// src/types/express/index.d.ts
+import "express";
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-      };
-      workspace?: {
-        id: string;
-        roleId: string;
-      };
-    }
+declare module "express" {
+  interface Request {
+    user?: { id: string };
+    workspace?: {
+      id: string;
+      roleId: string;
+      level?: number;
+      permissions?: string[];
+    };
   }
 }
