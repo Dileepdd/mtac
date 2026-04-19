@@ -1,0 +1,20 @@
+🔲 Optimize Permission Middleware with Redis
+
+- Cache role → permissions in Redis
+  key: role:{roleId}
+  value: ["VIEW_WORKSPACE", "CREATE_PROJECT"]
+
+- On permission check:
+  → Try Redis first
+  → Fallback to DB if cache miss
+  → Store in Redis
+
+- Add expiry (1 hour)
+
+- Invalidate cache when:
+  → role permissions updated
+  → role deleted
+
+- Goal:
+  → Avoid DB hit on every request
+  → Improve performance & scalability
