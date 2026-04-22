@@ -5,6 +5,9 @@ const permissionsSchema = new Schema<IPermission>(
   {
     name: {
       type: String,
+      required: true,
+      unique: true,
+      trim: true,
     },
   },
   {

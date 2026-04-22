@@ -1,22 +1,18 @@
 import { Request, Response, NextFunction } from "express";
+import { AppError } from "../errors/appError.js";
 
 export const checkPermission = (permissionName: string) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { roleId, permissions, level } = req.workspace ?? {};
+  return (req: Request, _res: Response, next: NextFunction) => {
+    const { roleId, permissions } = req.workspace ?? {};
 
-      if (!roleId) {
-        return res.status(403).json({ message: "No role assigned" });
-      }
-
-      if (!permissions || !permissions.includes(permissionName)) {
-        return res.status(403).json({ message: "Permission denied" });
-      }
-
-      next();
-    } catch (err) {
-      console.error("PERMISSION MIDDLEWARE ERROR:", err);
-      return res.status(500).json({ message: "Internal server error" });
+    if (!roleId) {
+      return next(new AppError("No role assigned", 403, "FORBIDDEN"));
     }
+
+    if (!permissions?.includes(permissionName)) {
+      return next(new AppError("Permission denied", 403, "FORBIDDEN"));
+    }
+
+    next();
   };
 };

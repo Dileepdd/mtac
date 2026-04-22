@@ -1,0 +1,875 @@
+{
+  "info": {
+    "_postman_id": "mtac-api-collection",
+    "name": "MTAC API",
+    "description": "MTAC Project Management API — workspaces, projects, tasks, RBAC.\n\nRun requests in order within each folder to auto-populate collection variables.\n\nNOTE: JSON bodies use // comments for documentation. Remove commented lines before sending.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl",      "value": "http://localhost:3000/api", "type": "string" },
+    { "key": "accessToken",  "value": "",                          "type": "string" },
+    { "key": "refreshToken", "value": "",                          "type": "string" },
+    { "key": "workspaceId",  "value": "",                          "type": "string" },
+    { "key": "projectId",    "value": "",                          "type": "string" },
+    { "key": "taskId",       "value": "",                          "type": "string" },
+    { "key": "roleId",       "value": "",                          "type": "string" },
+    { "key": "memberId",     "value": "",                          "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",            // required | min 3 chars\n  \"email\": \"testuser@example.com\", // required\n  \"password\": \"Password@123\"       // required | min 8 chars, must contain uppercase, lowercase, number, special char\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Success flag is true\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\", // required\n  \"password\": \"Password@123\"       // required\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Has tokens\", () => {",
+                  "  pm.expect(json.data.accessToken).to.be.a(\"string\");",
+                  "  pm.expect(json.data.refreshToken).to.be.a(\"string\");",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"accessToken\", json.data.accessToken);",
+                  "pm.collectionVariables.set(\"refreshToken\", json.data.refreshToken);",
+                  "console.log(\"accessToken saved:\", json.data.accessToken.substring(0, 20) + \"...\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\" // required\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Has new access token\", () => pm.expect(json.data.accessToken).to.be.a(\"string\"));",
+                  "",
+                  "pm.collectionVariables.set(\"accessToken\", json.data.accessToken);",
+                  "console.log(\"accessToken refreshed:\", json.data.accessToken.substring(0, 20) + \"...\");"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/user/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "profile"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Has user data\", () => {",
+                  "  pm.expect(json.data).to.have.property(\"name\");",
+                  "  pm.expect(json.data).to.have.property(\"email\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\" // required | min 3, max 50 chars\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "profile"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Success flag is true\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Password@123\",  // required\n  \"newPassword\": \"NewPassword@456\"    // required | min 8 chars, must contain uppercase, lowercase, number, special char\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/password",
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "password"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Success flag is true\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Workspace",
+      "item": [
+        {
+          "name": "Create Workspace",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Workspace\" // required | min 3, max 100 chars | alphanumeric, spaces, - _ . allowed\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspace",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Has workspace id\", () => pm.expect(json.data._id).to.be.a(\"string\"));",
+                  "",
+                  "pm.collectionVariables.set(\"workspaceId\", json.data._id);",
+                  "console.log(\"workspaceId saved:\", json.data._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Workspaces",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace"],
+              "query": [
+                { "key": "page",  "value": "1",  "description": "optional | default: 1" },
+                { "key": "limit", "value": "20", "description": "optional | default: 20, max: 100" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Has pagination\", () => pm.expect(json.pagination).to.have.property(\"total\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Workspace",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Has workspace name\", () => pm.expect(pm.response.json().data.name).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Workspace",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set(\"workspaceId\", \"\");",
+                  "  pm.collectionVariables.set(\"projectId\", \"\");",
+                  "  pm.collectionVariables.set(\"taskId\", \"\");",
+                  "  pm.collectionVariables.set(\"roleId\", \"\");",
+                  "  console.log(\"workspace-related variables cleared after deletion\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Workspace Members",
+      "item": [
+        {
+          "name": "Add Member",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"<target_user_id>\", // required | 24-char MongoDB ObjectId\n  \"roleId\": \"{{roleId}}\"        // optional | 24-char MongoDB ObjectId | defaults to member role\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspace-member/{{workspaceId}}/add",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace-member", "{{workspaceId}}", "add"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Success flag is true\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace-member/{{workspaceId}}/list",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace-member", "{{workspaceId}}", "list"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Data is an array\", () => pm.expect(json.data).to.be.an(\"array\"));",
+                  "",
+                  "if (json.data.length > 0) {",
+                  "  pm.collectionVariables.set(\"memberId\", json.data[0]._id);",
+                  "  console.log(\"memberId saved:\", json.data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Member Role",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"<target_user_id>\", // required | 24-char MongoDB ObjectId\n  \"roleId\": \"{{roleId}}\"        // required | 24-char MongoDB ObjectId\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspace-member/{{workspaceId}}/update",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace-member", "{{workspaceId}}", "update"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Success flag is true\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove Member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"<target_user_id>\" // required | 24-char MongoDB ObjectId\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspace-member/{{workspaceId}}/remove",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace-member", "{{workspaceId}}", "remove"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Success flag is true\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/role",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "role"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Has roles array\", () => pm.expect(json.data).to.be.an(\"array\"));",
+                  "",
+                  "if (json.data.length > 0) {",
+                  "  pm.collectionVariables.set(\"roleId\", json.data[0]._id);",
+                  "  console.log(\"roleId saved (\" + json.data[0].name + \"):\", json.data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Role Permissions",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permissions\": [         // required | array, min 1 item\n    // --- Workspace ---\n    // \"VIEW_WORKSPACE\",    // view workspace details\n    // \"UPDATE_WORKSPACE\",  // update workspace settings\n    // \"DELETE_WORKSPACE\",  // delete the workspace\n    // --- Members ---\n    // \"ADD_MEMBER\",        // add a new member to workspace\n    // \"REMOVE_MEMBER\",     // remove a member from workspace\n    // \"VIEW_MEMBERS\",      // list all workspace members\n    // \"UPDATE_MEMBER_ROLE\",// change a member's role\n    // --- Roles ---\n    // \"ASSIGN_ROLE\",       // assign a role when adding/updating a member\n    // \"CHANGE_ROLE\",       // modify role permissions\n    // --- Projects ---\n    // \"CREATE_PROJECT\",    // create a project\n    // \"VIEW_PROJECT\",      // view project details\n    // \"UPDATE_PROJECT\",    // update a project\n    // \"DELETE_PROJECT\",    // delete a project\n    // --- Tasks ---\n    // \"CREATE_TASK\",       // create a task\n    // \"VIEW_TASK\",         // view task details\n    // \"UPDATE_TASK\",       // update a task\n    // \"DELETE_TASK\",       // delete a task\n    // \"ASSIGN_TASK\"        // assign a task to a member\n    \"VIEW_WORKSPACE\",\n    \"VIEW_MEMBERS\",\n    \"VIEW_PROJECT\",\n    \"VIEW_TASK\"\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/role/{{roleId}}/permissions",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "role", "{{roleId}}", "permissions"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Success flag is true\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "Create Project",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My First Project\" // required | min 1, max 100 chars\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Has project id\", () => pm.expect(json.data._id).to.be.a(\"string\"));",
+                  "",
+                  "pm.collectionVariables.set(\"projectId\", json.data._id);",
+                  "console.log(\"projectId saved:\", json.data._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project"],
+              "query": [
+                { "key": "page",  "value": "1",  "description": "optional | default: 1" },
+                { "key": "limit", "value": "20", "description": "optional | default: 20, max: 100" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Has pagination\", () => pm.expect(json.pagination).to.have.property(\"total\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Project",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project/{{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project", "{{projectId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Has project name\", () => pm.expect(pm.response.json().data.name).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Project",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Project Name\" // required | min 1, max 100 chars\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project/{{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project", "{{projectId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Name updated\", () => pm.expect(pm.response.json().data.name).to.equal(\"Updated Project Name\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Project",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project/{{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project", "{{projectId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set(\"projectId\", \"\");",
+                  "  pm.collectionVariables.set(\"taskId\", \"\");",
+                  "  console.log(\"projectId and taskId cleared after deletion\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"My First Task\",          // required | max 200 chars\n  \"description\": \"Task description\", // optional | max 2000 chars\n  \"assigned_to\": \"<user_id>\"          // optional | 24-char MongoDB ObjectId of a workspace member\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project/{{projectId}}/task",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project", "{{projectId}}", "task"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Has task id\", () => pm.expect(json.data._id).to.be.a(\"string\"));",
+                  "",
+                  "pm.collectionVariables.set(\"taskId\", json.data._id);",
+                  "console.log(\"taskId saved:\", json.data._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project/{{projectId}}/task?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project", "{{projectId}}", "task"],
+              "query": [
+                { "key": "page",  "value": "1",  "description": "optional | default: 1" },
+                { "key": "limit", "value": "20", "description": "optional | default: 20, max: 100" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Has pagination\", () => pm.expect(json.pagination).to.have.property(\"total\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Task",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project/{{projectId}}/task/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project", "{{projectId}}", "task", "{{taskId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Has task title\", () => pm.expect(pm.response.json().data.title).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Task Title\",   // optional | max 200 chars\n  \"description\": \"New description\", // optional | max 2000 chars\n  \"status\": \"in_progress\"           // optional | options: \"todo\" | \"in_progress\" | \"done\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project/{{projectId}}/task/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project", "{{projectId}}", "task", "{{taskId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Status updated\", () => pm.expect(json.data.status).to.equal(\"in_progress\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assign Task",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assigned_to\": \"<user_id>\" // required | 24-char MongoDB ObjectId of a workspace member\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project/{{projectId}}/task/{{taskId}}/assign",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project", "{{projectId}}", "task", "{{taskId}}", "assign"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Has assigned_to\", () => pm.expect(pm.response.json().data.assigned_to).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspace/{{workspaceId}}/project/{{projectId}}/task/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["workspace", "{{workspaceId}}", "project", "{{projectId}}", "task", "{{taskId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set(\"taskId\", \"\");",
+                  "  console.log(\"taskId cleared after deletion\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { AppError } from "../errors/appError.js";
+import { logger } from "../utils/logger.js";
 
 export const errorMiddleware = (
   err: unknown,
@@ -26,7 +27,7 @@ export const errorMiddleware = (
     });
   }
 
-  console.error("UNHANDLED ERROR:", err);
+  logger.error("unhandled.error", { error: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined });
   return res.status(500).json({
     success: false,
     message: "Internal server error",

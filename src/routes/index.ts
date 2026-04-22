@@ -5,6 +5,10 @@ import { workspaceMiddleware } from "../middlewares/workspace.middleware.js";
 import authRoutes from "../modules/auth/auth.route.js";
 import workspaceRoutes from "../modules/workspace/workspace.route.js";
 import workspaceMemberRoutes from "../modules/workspaceMember/workspaceMember.route.js";
+import projectRoutes from "../modules/project/project.route.js";
+import taskRoutes from "../modules/task/task.route.js";
+import userRoutes from "../modules/user/user.routes.js";
+import roleRoutes from "../modules/role/role.route.js";
 
 const router = Router();
 
@@ -15,6 +19,25 @@ router.use(
   authMiddleware,
   workspaceMiddleware,
   workspaceMemberRoutes
+);
+router.use(
+  "/workspace/:workspace_id/project",
+  authMiddleware,
+  workspaceMiddleware,
+  projectRoutes
+);
+router.use(
+  "/workspace/:workspace_id/project/:project_id/task",
+  authMiddleware,
+  workspaceMiddleware,
+  taskRoutes
+);
+router.use("/user", authMiddleware, userRoutes);
+router.use(
+  "/workspace/:workspace_id/role",
+  authMiddleware,
+  workspaceMiddleware,
+  roleRoutes
 );
 
 export default router;

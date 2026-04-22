@@ -1,13 +1,19 @@
 import { z } from "zod";
 
+const objectId = z.string().regex(/^[0-9a-f]{24}$/i, "Invalid ID format");
+
 export const addMemberSchema = z.object({
-  userId: z.string().min(1),
-  roleId: z.string().min(1).optional(),
+  userId: objectId,
+  roleId: objectId.optional(),
 });
 
 export const updateMemberSchema = z.object({
-  userId: z.string().min(1),
-  roleId: z.string().min(1),
+  userId: objectId,
+  roleId: objectId,
+});
+
+export const removeMemberSchema = z.object({
+  userId: objectId,
 });
 
 export type AddMemberDTO = z.infer<typeof addMemberSchema>;

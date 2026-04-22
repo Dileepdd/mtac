@@ -1,19 +1,18 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
+import { AppError } from "../errors/appError.js";
 
 export const authMiddleware = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) => {
   try {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({
-        message: "Unauthorized: No token provided",
-      });
+      return next(new AppError("No token provided", 401, "UNAUTHORIZED"));
     }
 
     const token = authHeader.split(" ")[1];
@@ -22,14 +21,9 @@ export const authMiddleware = (
       userId: string;
     };
 
-    req.user = {
-      id: decoded.userId,
-    };
-
+    req.user = { id: decoded.userId };
     next();
-  } catch (error) {
-    return res.status(401).json({
-      message: "Unauthorized: Invalid or expired token",
-    });
+  } catch {
+    return next(new AppError("Invalid or expired token", 401, "UNAUTHORIZED"));
   }
 };

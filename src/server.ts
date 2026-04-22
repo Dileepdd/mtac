@@ -1,20 +1,19 @@
 import app from "./app.js";
-import { env } from "./config/env.js"; // dotenv loads inside here now
+import { env } from "./config/env.js";
 import { connectDB } from "./config/db.js";
+import { logger } from "./utils/logger.js";
 
 const startServer = async () => {
   try {
     await connectDB();
-
     app.listen(env.PORT, () => {
-      console.log(`server running on port ${env.PORT}`);
+      logger.info("server.started", { port: env.PORT });
     });
   } catch (error) {
-    console.error("🔥 SERVER START ERROR:");
-    console.error(error); // full object
-    console.error((error as any)?.message); // message
-    console.error((error as any)?.stack); // stack
-
+    logger.error("server.start_failed", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     process.exit(1);
   }
 };

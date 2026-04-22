@@ -1,6 +1,8 @@
 import { WorkspaceMemberModel } from "./workspaceMember.model.js";
 import { RoleModel } from "../role/role.model.js";
 import { UserModel } from "../user/user.model.js";
+import { AppError } from "../../errors/appError.js";
+import { logger } from "../../utils/logger.js";
 
 export const addMember = async ({
   userId,
@@ -15,64 +17,34 @@ export const addMember = async ({
   currentUserId: string;
   currentUserLevel: number;
 }) => {
-  const [user, existingMember, role] = await Promise.all([
+  const [user, role] = await Promise.all([
     UserModel.findById(userId).select("_id").lean(),
-
-    WorkspaceMemberModel.findOne({
-      user_id: userId,
-      workspace_id: workspaceId,
-    })
-      .select("_id")
-      .lean(),
-
     roleId
-      ? RoleModel.findOne({
-          _id: roleId,
-          workspace_id: workspaceId,
-        })
-          .select("_id level")
-          .lean()
-      : RoleModel.findOne({
-          name: "member",
-          workspace_id: workspaceId,
-        })
-          .select("_id level")
-          .lean(),
+      ? RoleModel.findOne({ _id: roleId, workspace_id: workspaceId }).select("_id level").lean()
+      : RoleModel.findOne({ name: "member", workspace_id: workspaceId }).select("_id level").lean(),
   ]);
 
-  if (!user) {
-    throw new Error("User not found");
-  }
-
-  if (existingMember) {
-    throw new Error("User already exists");
-  }
-
-  if (!role) {
-    throw new Error("Invalid role provided");
-  }
+  if (!user) throw new AppError("User not found", 404, "NOT_FOUND");
+  if (!role) throw new AppError("Invalid role provided", 400, "INVALID_ROLE");
 
   if (role.level <= currentUserLevel) {
-    throw new Error("You cannot assign this role");
+    throw new AppError("You cannot assign this role", 403, "FORBIDDEN");
   }
 
-  let member;
   try {
-    member = await WorkspaceMemberModel.create({
+    const member = await WorkspaceMemberModel.create({
       user_id: userId,
       workspace_id: workspaceId,
       role_id: role._id,
       created_by: currentUserId,
       updated_by: currentUserId,
     });
+    logger.info("member.added", { userId, workspaceId, roleId: role._id, addedBy: currentUserId });
+    return member;
   } catch (err: any) {
-    if (isDuplicateKeyError(err)) {
-      throw new Error("User already exists");
-    }
+    if (err?.code === 11000) throw new AppError("User already a member", 409, "ALREADY_EXISTS");
     throw err;
   }
-
-  return member;
 };
 
 export const updateMember = async ({
@@ -91,32 +63,59 @@ export const updateMember = async ({
   const [member, role] = await Promise.all([
     WorkspaceMemberModel.findOne({ user_id: userId, workspace_id: workspaceId })
       .select("_id role_id")
-      .populate<{
-        role_id: { level: number };
-      }>({ path: "role_id", select: "level" })
+      .populate<{ role_id: { level: number } }>({ path: "role_id", select: "level" })
       .lean(),
-
-    RoleModel.findOne({ _id: roleId, workspace_id: workspaceId })
-      .select("_id level")
-      .lean(),
+    RoleModel.findOne({ _id: roleId, workspace_id: workspaceId }).select("_id level").lean(),
   ]);
 
-  if (!member) throw new Error("Member not found");
-  if (!role) throw new Error("Invalid role provided");
+  if (!member) throw new AppError("Member not found", 404, "NOT_FOUND");
+  if (!role) throw new AppError("Invalid role provided", 400, "INVALID_ROLE");
 
   if (member.role_id.level <= currentUserLevel) {
-    throw new Error("You cannot update this member");
+    throw new AppError("You cannot update this member", 403, "FORBIDDEN");
   }
-
   if (role.level <= currentUserLevel) {
-    throw new Error("You cannot assign this role");
+    throw new AppError("You cannot assign this role", 403, "FORBIDDEN");
   }
 
-  return WorkspaceMemberModel.findOneAndUpdate(
+  const updated = await WorkspaceMemberModel.findOneAndUpdate(
     { user_id: userId, workspace_id: workspaceId },
     { role_id: role._id, updated_by: currentUserId },
-    { new: true }
+    { returnDocument: "after" }
   ).lean();
+
+  logger.info("member.role_updated", { userId, workspaceId, newRoleId: role._id, updatedBy: currentUserId });
+  return updated;
+};
+
+export const removeMember = async ({
+  userId,
+  workspaceId,
+  currentUserId,
+  currentUserLevel,
+}: {
+  userId: string;
+  workspaceId: string;
+  currentUserId: string;
+  currentUserLevel: number;
+}) => {
+  if (userId === currentUserId) {
+    throw new AppError("You cannot remove yourself", 400, "BAD_REQUEST");
+  }
+
+  const member = await WorkspaceMemberModel.findOne({ user_id: userId, workspace_id: workspaceId })
+    .select("_id role_id")
+    .populate<{ role_id: { level: number } }>({ path: "role_id", select: "level" })
+    .lean();
+
+  if (!member) throw new AppError("Member not found", 404, "NOT_FOUND");
+
+  if (member.role_id.level <= currentUserLevel) {
+    throw new AppError("You cannot remove this member", 403, "FORBIDDEN");
+  }
+
+  await WorkspaceMemberModel.findByIdAndDelete(member._id);
+  logger.info("member.removed", { userId, workspaceId, removedBy: currentUserId });
 };
 
 export const getMembersService = async ({
@@ -134,7 +133,6 @@ export const getMembersService = async ({
 }) => {
   const skip = (page - 1) * limit;
 
-  // Get subordinate role IDs (roles with higher level number = lower rank)
   const subordinateRoles = await RoleModel.find({
     workspace_id: workspaceId,
     level: { $gt: currentUserLevel },
@@ -144,41 +142,19 @@ export const getMembersService = async ({
 
   const subordinateRoleIds = subordinateRoles.map((r) => r._id);
 
-  // Fetch self separately (lightweight)
-  const self = await WorkspaceMemberModel.findOne({
-    workspace_id: workspaceId,
-    user_id: currentUserId,
-  })
+  const self = await WorkspaceMemberModel.findOne({ workspace_id: workspaceId, user_id: currentUserId })
     .select("user_id role_id created_at")
-    .populate<{ user_id: { _id: string; name: string; email: string } }>({
-      path: "user_id",
-      select: "name email",
-    })
-    .populate<{ role_id: { _id: string; name: string; level: number } }>({
-      path: "role_id",
-      select: "name level",
-    })
+    .populate<{ user_id: { _id: string; name: string; email: string } }>({ path: "user_id", select: "name email" })
+    .populate<{ role_id: { _id: string; name: string; level: number } }>({ path: "role_id", select: "name level" })
     .lean();
 
-  // Count + paginate subordinates at DB level
   const [total, members] = await Promise.all([
-    WorkspaceMemberModel.countDocuments({
-      workspace_id: workspaceId,
-      role_id: { $in: subordinateRoleIds },
-    }),
-    WorkspaceMemberModel.find({
-      workspace_id: workspaceId,
-      role_id: { $in: subordinateRoleIds },
-    })
+    WorkspaceMemberModel.countDocuments({ workspace_id: workspaceId, role_id: { $in: subordinateRoleIds } }),
+    WorkspaceMemberModel.find({ workspace_id: workspaceId, role_id: { $in: subordinateRoleIds } })
       .select("user_id role_id created_at")
-      .populate<{ user_id: { _id: string; name: string; email: string } }>({
-        path: "user_id",
-        select: "name email",
-      })
-      .populate<{ role_id: { _id: string; name: string; level: number } }>({
-        path: "role_id",
-        select: "name level",
-      })
+      .populate<{ user_id: { _id: string; name: string; email: string } }>({ path: "user_id", select: "name email" })
+      .populate<{ role_id: { _id: string; name: string; level: number } }>({ path: "role_id", select: "name level" })
+      .sort({ created_at: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),
@@ -187,13 +163,6 @@ export const getMembersService = async ({
   return {
     self,
     members,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
   };
 };
-
-const isDuplicateKeyError = (err: any) => err?.code === 11000;

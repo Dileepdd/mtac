@@ -1,16 +1,22 @@
 import { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
 import { WorkspaceMemberModel } from "../modules/workspaceMember/workspaceMember.model.js";
+import { AppError } from "../errors/appError.js";
 
 export const workspaceMiddleware = async (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) => {
   try {
     const userId = req.user?.id;
     const workspaceId = req.params.workspace_id as string;
 
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!userId) return next(new AppError("Unauthorized", 401, "UNAUTHORIZED"));
+
+    if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
+      return next(new AppError("Invalid workspace id", 400, "INVALID_ID"));
+    }
 
     const membership = await WorkspaceMemberModel.findOne({
       user_id: userId,
@@ -31,9 +37,7 @@ export const workspaceMiddleware = async (
       .lean();
 
     if (!membership) {
-      return res
-        .status(403)
-        .json({ message: "Access denied: Not a workspace member" });
+      return next(new AppError("Not a workspace member", 403, "FORBIDDEN"));
     }
 
     const role = membership.role_id;
@@ -47,7 +51,6 @@ export const workspaceMiddleware = async (
 
     next();
   } catch (err) {
-    console.error("WORKSPACE MIDDLEWARE ERROR:", err);
-    return res.status(500).json({ message: "Internal server error" });
+    next(err);
   }
 };

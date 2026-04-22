@@ -1,6 +1,13 @@
 - [x] 1) Add centralized error foundation (`AppError` + global error middleware)
 - [x] 2) Migrate controllers to throw typed errors instead of ad-hoc status mapping
-- [ ] 3) Finalize auth strategy (access-only or full refresh flow)
-- [ ] 4) Add login rate limiter and auth hardening limits
-- [ ] 5) Stabilize pagination ordering and add ObjectId input validation
-- [ ] 6) Implement Redis permission cache from `src/todo`
+- [x] 3) Implement workspace CRUD (create, get single, get all with pagination)
+- [x] 4) Implement workspace member management (add, update role, list) with hierarchy enforcement
+- [x] 5) Implement RBAC (3 default roles, 17 permissions, auto-seeded on workspace creation)
+- [x] 6) Implement User endpoints (get profile, update profile)
+- [x] 7) Implement Project CRUD endpoints (create, get, update, delete)
+- [x] 7b) Implement Task CRUD endpoints (create, list, get, update, delete, assign) under a project
+- [x] 8) Implement Role management endpoints (list roles, update role permissions)
+- [x] 9) Finalize auth strategy — add refresh token endpoint (`/api/auth/refresh`)
+- [x] 10) Add login rate limiter and auth hardening limits
+- [x] 11) Stabilize pagination ordering and add ObjectId input validation
+- [ ] 12) Implement Redis permission cache from `src/todo`
