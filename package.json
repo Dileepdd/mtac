@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "dev": "nodemon --exec tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "dev": "nodemon --exec tsx src/server.ts",
     "seed:permissions": "tsx src/seeders/seedPermissions.ts",
     "format": "prettier --write \"src/**/*.{ts,js,json}\""
   },
