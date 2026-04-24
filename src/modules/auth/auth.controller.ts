@@ -107,15 +107,26 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
   }
 };
 
-export const resetPasswordController = async (req: Request, res: Response, next: NextFunction) => {
+export const resetPasswordController = async (
+  req: Request<{ token: string }>,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const { token } = req.params;
     const body = resetPasswordSchema.parse(req.body);
+
     await resetPassword(token, body);
-    return res.status(200).json({ success: true, message: "Password updated successfully." });
+
+    return res.status(200).json({
+      success: true,
+      message: "Password updated successfully.",
+    });
   } catch (err: any) {
     if (err instanceof ZodError) {
-      return next(new AppError("Validation failed", 400, "VALIDATION_ERROR", err.issues));
+      return next(
+        new AppError("Validation failed", 400, "VALIDATION_ERROR", err.issues)
+      );
     }
     return next(err);
   }
