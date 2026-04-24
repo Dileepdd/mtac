@@ -8,8 +8,8 @@ export const create = async (req: Request, res: Response, next: NextFunction) =>
   try {
     if (!req.user?.id || !req.workspace) return next(new AppError("Unauthorized", 401, "UNAUTHORIZED"));
 
-    const { name } = createProjectSchema.parse(req.body);
-    const project = await createProject({ name, workspaceId: req.workspace.id, userId: req.user.id });
+    const { name, key, color } = createProjectSchema.parse(req.body);
+    const project = await createProject({ name, key, color, workspaceId: req.workspace.id, userId: req.user.id });
 
     return res.status(201).json({ success: true, message: "Project created successfully", data: project });
   } catch (err: any) {
@@ -47,8 +47,8 @@ export const update = async (req: Request, res: Response, next: NextFunction) =>
   try {
     if (!req.workspace) return next(new AppError("Unauthorized", 401, "UNAUTHORIZED"));
 
-    const { name } = updateProjectSchema.parse(req.body);
-    const project = await updateProject({ projectId: req.params.project_id as string, workspaceId: req.workspace.id, name });
+    const { name, color } = updateProjectSchema.parse(req.body);
+    const project = await updateProject({ projectId: req.params.project_id as string, workspaceId: req.workspace.id, name, color });
 
     return res.status(200).json({ success: true, message: "Project updated successfully", data: project });
   } catch (err: any) {

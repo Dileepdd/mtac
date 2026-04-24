@@ -9,7 +9,7 @@ export const checkPermission = (permissionName: string) => {
       return next(new AppError("No role assigned", 403, "FORBIDDEN"));
     }
 
-    if (!permissions?.includes(permissionName)) {
+    if (!req.workspace?.allPermissions && !permissions?.includes(permissionName)) {
       return next(new AppError("Permission denied", 403, "FORBIDDEN"));
     }
 

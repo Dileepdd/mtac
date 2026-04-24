@@ -28,6 +28,10 @@ const roleSchema = new Schema(
       ref: "User",
       required: true,
     },
+    all_permissions: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: {

@@ -3,6 +3,8 @@ import { RoleModel } from "../role/role.model.js";
 import { UserModel } from "../user/user.model.js";
 import { AppError } from "../../errors/appError.js";
 import { logger } from "../../utils/logger.js";
+import { invalidateMemberCache } from "../../middlewares/workspace.middleware.js";
+import { logActivity } from "../activity/activity.service.js";
 
 export const addMember = async ({
   userId,
@@ -39,6 +41,7 @@ export const addMember = async ({
       created_by: currentUserId,
       updated_by: currentUserId,
     });
+    logActivity({ workspaceId, actorId: currentUserId, actorName: "", verb: "added", target: userId, targetType: "member" });
     logger.info("member.added", { userId, workspaceId, roleId: role._id, addedBy: currentUserId });
     return member;
   } catch (err: any) {
@@ -84,6 +87,9 @@ export const updateMember = async ({
     { returnDocument: "after" }
   ).lean();
 
+  // Invalidate this user's cached permissions — their role changed
+  await invalidateMemberCache(workspaceId, userId);
+
   logger.info("member.role_updated", { userId, workspaceId, newRoleId: role._id, updatedBy: currentUserId });
   return updated;
 };
@@ -115,6 +121,11 @@ export const removeMember = async ({
   }
 
   await WorkspaceMemberModel.findByIdAndDelete(member._id);
+
+  // Invalidate removed member's cached permissions
+  await invalidateMemberCache(workspaceId, userId);
+
+  logActivity({ workspaceId, actorId: currentUserId, actorName: "", verb: "removed", target: userId, targetType: "member" });
   logger.info("member.removed", { userId, workspaceId, removedBy: currentUserId });
 };
 

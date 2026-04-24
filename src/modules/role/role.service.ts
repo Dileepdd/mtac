@@ -3,10 +3,11 @@ import { RoleModel } from "./role.model.js";
 import { PermissionModel } from "../permission/permission.model.js";
 import { AppError } from "../../errors/appError.js";
 import { logger } from "../../utils/logger.js";
+import { invalidateWorkspaceMemberCache } from "../../middlewares/workspace.middleware.js";
 
 export const getRoles = async (workspaceId: string) => {
   const roles = await RoleModel.find({ workspace_id: workspaceId })
-    .select("name level permissions")
+    .select("name level all_permissions permissions")
     .populate<{ permissions: { _id: string; name: string }[] }>({ path: "permissions", select: "name" })
     .sort({ level: 1 })
     .lean();
@@ -31,6 +32,7 @@ export const updateRolePermissions = async ({
 
   const role = await RoleModel.findOne({ _id: roleId, workspace_id: workspaceId }).lean();
   if (!role) throw new AppError("Role not found", 404, "NOT_FOUND");
+  if (role.all_permissions) throw new AppError("Cannot update permissions of an admin role", 400, "INVALID_OPERATION");
 
   const permissions = await PermissionModel.find({ name: { $in: permissionNames } })
     .select("_id name")
@@ -47,9 +49,12 @@ export const updateRolePermissions = async ({
     { permissions: permissions.map((p) => p._id) },
     { returnDocument: "after" }
   )
-    .select("name level permissions")
+    .select("name level all_permissions permissions")
     .populate<{ permissions: { _id: string; name: string }[] }>({ path: "permissions", select: "name" })
     .lean();
+
+  // Invalidate ALL cached memberships for this workspace — role permissions changed
+  await invalidateWorkspaceMemberCache(workspaceId);
 
   logger.info("role.permissions_updated", { roleId, workspaceId, userId });
   return updated;

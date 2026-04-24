@@ -13,6 +13,7 @@ declare module "express-serve-static-core" {
       id: string;
       roleId: string;
       level?: number;
+      allPermissions?: boolean;
       permissions?: string[];
     };
   }

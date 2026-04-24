@@ -1,9 +1,11 @@
-import { Types, Document } from "mongoose";
+import { Types } from "mongoose";
 
 export interface IProject {
-  name: string;
+  name:         string;
+  key:          string;
+  color:        string;
   workspace_id: Types.ObjectId;
-  created_by: Types.ObjectId;
-  created_at: Date;
-  updated_at: Date;
+  created_by:   Types.ObjectId;
+  created_at:   Date;
+  updated_at:   Date;
 }

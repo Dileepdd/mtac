@@ -6,6 +6,7 @@ export interface IRole extends Document {
   workspace_id: Types.ObjectId;
   created_by: Types.ObjectId;
   permissions: Types.ObjectId[];
+  all_permissions: boolean;
   created_at: Date;
   updated_at: Date;
 }

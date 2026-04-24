@@ -10,12 +10,15 @@ export const create = async (req: Request, res: Response, next: NextFunction) =>
 
     const body = createTaskSchema.parse(req.body);
     const task = await createTask({
-      title: body.title,
+      title:       body.title,
       description: body.description,
-      projectId: req.params.project_id as string,
+      projectId:   req.params.project_id as string,
       workspaceId: req.workspace.id,
-      assignedTo: body.assigned_to,
-      userId: req.user.id,
+      assignedTo:  body.assigned_to,
+      priority:    body.priority,
+      labels:      body.labels,
+      due:         body.due,
+      userId:      req.user.id,
     });
 
     return res.status(201).json({ success: true, message: "Task created successfully", data: task });

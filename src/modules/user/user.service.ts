@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 
 export const getUserProfile = async (userId: string) => {
   const user = await UserModel.findById(userId)
-    .select("name email user_code created_at")
+    .select("name email user_code hue created_at")
     .lean();
 
   if (!user) throw new AppError("User not found", 404, "NOT_FOUND");
