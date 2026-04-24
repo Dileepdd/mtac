@@ -7,6 +7,7 @@ import routes from "./routes/index.js";
 import { Request, Response, NextFunction } from "express";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { env } from "./config/env.js";
+import passport from "./config/passport.js";
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 app.use(express.json());
 app.use(morgan("dev"));
+app.use(passport.initialize());
 
 app.get("/health", (req: Request, res: Response) => {
   res.send("Server running...");

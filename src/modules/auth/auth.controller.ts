@@ -3,6 +3,9 @@ import { ZodError } from "zod";
 import { registerUser, loginUser, refreshAccessToken, requestPasswordReset, resetPassword, verifyEmail, resendOtp } from "./auth.service.js";
 import { registerSchema, logInSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema, resendOtpSchema } from "./auth.validation.js";
 import { AppError } from "../../errors/appError.js";
+import { generateAccessToken, generateRefreshToken } from "../../utils/jwt.js";
+import { env } from "../../config/env.js";
+import { logger } from "../../utils/logger.js";
 
 export const register = async (
   req: Request,
@@ -129,5 +132,23 @@ export const resetPasswordController = async (
       );
     }
     return next(err);
+  }
+};
+
+// Called after passport.authenticate("google") succeeds via custom callback
+export const googleCallback = (
+  res: Response,
+  next: NextFunction,
+  user: Express.User
+): void => {
+  try {
+    const userId = user.id;
+    const accessToken = generateAccessToken(userId);
+    const refreshToken = generateRefreshToken(userId);
+    logger.info("user.google_login", { userId });
+    const redirect = `${env.APP_URL}/auth/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}`;
+    res.redirect(redirect);
+  } catch {
+    res.redirect(`${env.APP_URL}/auth/callback?error=google_auth_failed`);
   }
 };

@@ -24,13 +24,15 @@ export const registerUser = async (data: RegisterDTO) => {
 
   if (existedUser) {
     if (!existedUser.email_verified) {
-      // User registered but never verified — refresh OTP and resend
       const otp = generateOtp();
       const otpExpiresAt = new Date(Date.now() + OTP_TTL_MS);
       await UserModel.findByIdAndUpdate(existedUser._id, { email_otp: otp, email_otp_expires_at: otpExpiresAt });
+      logger.info("user.re_registration.otp_resend_attempt", { email, userId: existedUser._id.toString() });
       try {
         await sendVerificationEmail(email, existedUser.name, otp);
-      } catch {
+        logger.info("user.re_registration.otp_sent", { email });
+      } catch (err) {
+        logger.error("user.re_registration.otp_failed", { email, error: err instanceof Error ? err.message : String(err) });
         throw new AppError("Failed to send verification email. Please try again.", 503, "EMAIL_SEND_FAILED");
       }
       throw new AppError("Account already exists but is not verified. A new code has been sent to your email.", 409, "EMAIL_NOT_VERIFIED");
@@ -71,6 +73,14 @@ export const loginUser = async (data: LogInDTO) => {
 
   if (!user) {
     throw new AppError("Invalid email or password", 401, "INVALID_CREDENTIALS");
+  }
+
+  if (!user.password) {
+    throw new AppError(
+      "This account uses Google Sign-In. Please sign in with Google.",
+      400,
+      "USE_GOOGLE_SIGN_IN"
+    );
   }
 
   const isMatch = await bcrypt.compare(password, user.password);

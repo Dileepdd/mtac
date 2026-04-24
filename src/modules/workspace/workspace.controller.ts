@@ -76,7 +76,10 @@ export const myTasks = async (req: Request, res: Response, next: NextFunction) =
   try {
     if (!req.user?.id || !req.workspace) return next(new AppError("Unauthorized", 401, "UNAUTHORIZED"));
 
-    const status = req.query.status as string | undefined;
+    const status     = req.query.status     as string | undefined;
+    const due_after  = req.query.due_after  as string | undefined;
+    const due_before = req.query.due_before as string | undefined;
+
     const filter: Record<string, any> = {
       workspace_id: req.workspace.id,
       assigned_to:  req.user.id,
@@ -84,6 +87,11 @@ export const myTasks = async (req: Request, res: Response, next: NextFunction) =
     if (status) {
       const statuses = status.split(",").map((s) => s.trim());
       filter.status = { $in: statuses };
+    }
+    if (due_after || due_before) {
+      filter.due = {};
+      if (due_after)  filter.due.$gte = new Date(due_after);
+      if (due_before) filter.due.$lte = new Date(due_before);
     }
 
     const tasks = await TaskModel

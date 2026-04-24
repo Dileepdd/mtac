@@ -10,6 +10,7 @@ import taskRoutes          from "../modules/task/task.route.js";
 import commentRoutes       from "../modules/comment/comment.route.js";
 import userRoutes          from "../modules/user/user.routes.js";
 import roleRoutes          from "../modules/role/role.route.js";
+import permissionRoutes    from "../modules/permission/permission.route.js";
 
 const router = Router();
 
@@ -36,7 +37,8 @@ router.use(
   authMiddleware, workspaceMiddleware,
   commentRoutes
 );
-router.use("/user", authMiddleware, userRoutes);
+router.use("/user",        authMiddleware, userRoutes);
+router.use("/permissions", authMiddleware, permissionRoutes);
 router.use(
   "/workspace/:workspace_id/role",
   authMiddleware, workspaceMiddleware,
