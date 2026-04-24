@@ -47,7 +47,7 @@ describe("Workspace endpoints", () => {
   describe("GET /api/workspace/:workspace_id", () => {
     it("returns workspace details", async () => {
       const created = await api.post("/api/workspace/create").set(authHeader(token)).send({ name: "Details WS" });
-      const id = created.body.data.id;
+      const id = created.body.data._id;
 
       const res = await api.get(`/api/workspace/${id}`).set(authHeader(token));
       expect(res.status).toBe(200);
@@ -62,7 +62,7 @@ describe("Workspace endpoints", () => {
     it("returns 403 when user is not a member", async () => {
       const otherTokens = await registerAndLogin("Bob", "bob@example.com");
       const ws = await api.post("/api/workspace/create").set(authHeader(otherTokens.accessToken)).send({ name: "Bob WS" });
-      const id = ws.body.data.id;
+      const id = ws.body.data._id;
 
       const res = await api.get(`/api/workspace/${id}`).set(authHeader(token));
       expect(res.status).toBe(403);
@@ -72,15 +72,15 @@ describe("Workspace endpoints", () => {
   describe("DELETE /api/workspace/:workspace_id", () => {
     it("allows admin to delete their workspace", async () => {
       const created = await api.post("/api/workspace/create").set(authHeader(token)).send({ name: "To Delete" });
-      const id = created.body.data.id;
+      const id = created.body.data._id;
 
       const res = await api.delete(`/api/workspace/${id}`).set(authHeader(token));
       expect(res.status).toBe(200);
     });
 
-    it("returns 404 after workspace is deleted", async () => {
+    it("returns 403 after workspace is deleted (user is no longer a member)", async () => {
       const created = await api.post("/api/workspace/create").set(authHeader(token)).send({ name: "Gone" });
-      const id = created.body.data.id;
+      const id = created.body.data._id;
       await api.delete(`/api/workspace/${id}`).set(authHeader(token));
 
       const res = await api.get(`/api/workspace/${id}`).set(authHeader(token));

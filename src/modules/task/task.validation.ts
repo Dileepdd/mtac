@@ -17,6 +17,7 @@ export const updateTaskSchema = z.object({
   priority: z.enum(["urgent", "high", "med", "low", "none"]).optional(),
   labels: z.array(z.string().trim().max(30)).max(10).optional(),
   due: z.string().datetime({ offset: true }).nullable().optional(),
+  assigned_to: z.string().nullable().optional(),
 });
 
 export const assignTaskSchema = z.object({

@@ -10,6 +10,7 @@ import { IRole } from "../role/roles.types.js";
 import { AppError } from "../../errors/appError.js";
 import { logger } from "../../utils/logger.js";
 import { redis, KEYS, TTL } from "../../config/redis.js";
+import { invalidateWorkspaceMemberCache } from "../../middlewares/workspace.middleware.js";
 import type { WorkspaceSettings } from "./workspace.types.js";
 
 // ─── Slug generation ─────────────────────────────────────────────────────────
@@ -232,8 +233,11 @@ export const deleteWorkspace = async (workspaceId: string, userId: string) => {
     TaskModel.deleteMany({ workspace_id: workspaceId }),
   ]);
 
-  // Clear all cached memberships for this workspace
-  await redis.del(KEYS.wsStats(workspaceId));
+  // Clear all cached data for this workspace synchronously so no stale session leaks
+  await Promise.all([
+    redis.del(KEYS.wsStats(workspaceId)),
+    invalidateWorkspaceMemberCache(workspaceId),
+  ]);
 
   logger.info("workspace.deleted", { workspaceId, userId });
   return workspace;

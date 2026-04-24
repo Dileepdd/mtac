@@ -81,7 +81,7 @@ export const createTask = async ({
 
   UserModel.findById(userId).select("name").lean().then((u) => {
     logActivity({ workspaceId, actorId: userId, actorName: u?.name ?? "", verb: "created", target: taskKey, targetType: "task" });
-  }).catch(() => {});
+  }).catch((e) => logger.warn("activity.log.failed", { err: e?.message }));
   logger.info("task.created", { taskId: task._id, key: taskKey, projectId, workspaceId, userId });
   return task;
 };
@@ -162,10 +162,15 @@ export const updateTask = async ({
     priority?: TaskPriority;
     labels?: string[];
     due?: string | null;
+    assigned_to?: string | null;
   };
 }) => {
   if (!mongoose.Types.ObjectId.isValid(taskId)) {
     throw new AppError("Invalid task id", 400, "INVALID_ID");
+  }
+
+  if (updates.assigned_to) {
+    await validateWorkspaceMember(updates.assigned_to, workspaceId);
   }
 
   const patch: Record<string, any> = { ...updates, updated_by: userId };
@@ -186,7 +191,7 @@ export const updateTask = async ({
     const statusLabel: Record<string, string> = { todo: "Todo", in_progress: "In Progress", done: "Done" };
     UserModel.findById(userId).select("name").lean().then((u) => {
       logActivity({ workspaceId, actorId: userId, actorName: u?.name ?? "", verb: "moved", target: (task as any).key ?? taskId, targetType: "task", to: statusLabel[updates.status!] });
-    }).catch(() => {});
+    }).catch((e) => logger.warn("activity.log.failed", { err: e?.message }));
   }
   logger.info("task.updated", { taskId, userId });
   return task;

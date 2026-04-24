@@ -9,7 +9,7 @@ describe("Project endpoints", () => {
     await seedPermissions();
     ({ accessToken: token } = await registerAndLogin());
     const ws = await api.post("/api/workspace/create").set(authHeader(token)).send({ name: "Test WS" });
-    workspaceId = ws.body.data.id;
+    workspaceId = ws.body.data._id;
   });
 
   const projectBase = () => `/api/workspace/${workspaceId}/project`;

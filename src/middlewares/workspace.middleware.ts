@@ -88,14 +88,15 @@ export async function invalidateMemberCache(workspaceId: string, userId: string)
 
 /** Invalidate ALL cached memberships for a workspace (used when role permissions change) */
 export async function invalidateWorkspaceMemberCache(workspaceId: string) {
-  // Upstash supports SCAN — collect and delete all matching keys
+  // Upstash REST API may return the cursor as a string ("0") rather than a number.
+  // Use Number() so the do-while terminates correctly in both cases.
   let cursor = 0;
   do {
     const [nextCursor, keys] = await redis.scan(cursor, {
       match: KEYS.wsMemberPattern(workspaceId),
       count: 100,
     });
-    cursor = nextCursor as unknown as number;
+    cursor = Number(nextCursor);
     if (keys.length > 0) {
       await redis.del(...(keys as string[]));
     }

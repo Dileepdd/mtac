@@ -53,8 +53,10 @@ export const updateRolePermissions = async ({
     .populate<{ permissions: { _id: string; name: string }[] }>({ path: "permissions", select: "name" })
     .lean();
 
-  // Invalidate ALL cached memberships for this workspace — role permissions changed
-  await invalidateWorkspaceMemberCache(workspaceId);
+  // Fire-and-forget: don't let a Redis hiccup block the HTTP response
+  invalidateWorkspaceMemberCache(workspaceId).catch((err) =>
+    logger.warn("cache.invalidation_failed", { workspaceId, error: (err as Error).message })
+  );
 
   logger.info("role.permissions_updated", { roleId, workspaceId, userId });
   return updated;

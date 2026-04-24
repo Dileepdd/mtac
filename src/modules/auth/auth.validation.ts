@@ -21,5 +21,24 @@ export const logInSchema = z.object({
   password: z.string().min(1),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: emailField,
+});
+
+export const resetPasswordSchema = z.object({
+  newPassword: passwordField,
+});
+
+export const verifyEmailSchema = z.object({
+  email: emailField,
+  otp: z.string().length(6, "OTP must be 6 digits").regex(/^\d{6}$/, "OTP must be numeric"),
+});
+
+export const resendOtpSchema = z.object({
+  email: emailField,
+});
+
 export type RegisterDTO = z.infer<typeof registerSchema>;
 export type LogInDTO = z.infer<typeof logInSchema>;
+export type ForgotPasswordDTO = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordDTO = z.infer<typeof resetPasswordSchema>;

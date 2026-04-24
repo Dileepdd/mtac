@@ -13,7 +13,7 @@ describe("Role management endpoints", () => {
     ({ accessToken: adminToken } = await registerAndLogin("Admin", "admin@example.com"));
 
     const ws = await api.post("/api/workspace/create").set(authHeader(adminToken)).send({ name: "Test WS" });
-    workspaceId = ws.body.data.id;
+    workspaceId = ws.body.data._id;
 
     // register a regular member and add them to the workspace
     const memberTokens = await registerAndLogin("Bob", "bob@example.com");

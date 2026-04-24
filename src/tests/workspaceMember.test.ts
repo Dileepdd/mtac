@@ -24,7 +24,7 @@ describe("Workspace Member endpoints", () => {
 
     // admin creates workspace — becomes admin automatically
     const ws = await api.post("/api/workspace/create").set(authHeader(adminToken)).send({ name: "Test WS" });
-    workspaceId = ws.body.data.id;
+    workspaceId = ws.body.data._id;
 
     // fetch roles seeded for this workspace
     const roles = await api.get(`/api/workspace/${workspaceId}/role`).set(authHeader(adminToken));
