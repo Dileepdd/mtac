@@ -16,12 +16,22 @@ export class SmtpProvider implements IEmailProvider {
       },
     });
 
-    const info = await transporter.sendMail({
-      from: env.EMAIL_FROM,
-      to: payload.to,
-      subject: payload.subject,
-      html: payload.html,
-    });
+    let info;
+    try {
+      info = await transporter.sendMail({
+        from: env.EMAIL_FROM,
+        to: payload.to,
+        subject: payload.subject,
+        html: payload.html,
+      });
+    } catch (err) {
+      logger.error("email.smtp.failed", {
+        to: payload.to,
+        subject: payload.subject,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
 
     logger.info("email.smtp.sent", {
       to: payload.to,

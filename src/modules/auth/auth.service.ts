@@ -23,6 +23,18 @@ export const registerUser = async (data: RegisterDTO) => {
   const existedUser = await UserModel.findOne({ email });
 
   if (existedUser) {
+    if (!existedUser.email_verified) {
+      // User registered but never verified — refresh OTP and resend
+      const otp = generateOtp();
+      const otpExpiresAt = new Date(Date.now() + OTP_TTL_MS);
+      await UserModel.findByIdAndUpdate(existedUser._id, { email_otp: otp, email_otp_expires_at: otpExpiresAt });
+      try {
+        await sendVerificationEmail(email, existedUser.name, otp);
+      } catch {
+        throw new AppError("Failed to send verification email. Please try again.", 503, "EMAIL_SEND_FAILED");
+      }
+      throw new AppError("Account already exists but is not verified. A new code has been sent to your email.", 409, "EMAIL_NOT_VERIFIED");
+    }
     throw new AppError("User already exists", 409, "USER_EXISTS");
   }
 
@@ -41,7 +53,12 @@ export const registerUser = async (data: RegisterDTO) => {
     email_otp_expires_at: otpExpiresAt,
   });
 
-  await sendVerificationEmail(email, name, otp);
+  try {
+    await sendVerificationEmail(email, name, otp);
+  } catch {
+    await UserModel.findByIdAndDelete(user._id);
+    throw new AppError("Failed to send verification email. Please try again.", 503, "EMAIL_SEND_FAILED");
+  }
 
   logger.info("user.registered", { userId: user._id.toString() });
   return user;
@@ -116,7 +133,11 @@ export const resendOtp = async (email: string): Promise<void> => {
     email_otp_expires_at: otpExpiresAt,
   });
 
-  await sendVerificationEmail(email, user.name, otp);
+  try {
+    await sendVerificationEmail(email, user.name, otp);
+  } catch {
+    throw new AppError("Failed to send verification email. Please try again.", 503, "EMAIL_SEND_FAILED");
+  }
   logger.info("user.otp_resent", { userId: user._id.toString() });
 };
 
@@ -138,7 +159,11 @@ export const requestPasswordReset = async ({ email }: ForgotPasswordDTO): Promis
 
   const resetLink = `${env.APP_URL}/reset-password/${token}`;
 
-  await sendForgotPasswordEmail(email, user.name, resetLink);
+  try {
+    await sendForgotPasswordEmail(email, user.name, resetLink);
+  } catch {
+    throw new AppError("Failed to send password reset email. Please try again.", 503, "EMAIL_SEND_FAILED");
+  }
 
   logger.info("auth.password_reset_requested", { userId: user._id.toString() });
 };
