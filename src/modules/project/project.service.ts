@@ -125,6 +125,7 @@ export const getProject = async ({
   }
   const project = await ProjectModel.findOne({ _id: projectId, workspace_id: workspaceId })
     .select("name key color created_by created_at updated_at")
+    .populate<{ created_by: { _id: string; name: string } }>("created_by", "name")
     .lean();
   if (!project) throw new AppError("Project not found", 404, "NOT_FOUND");
 

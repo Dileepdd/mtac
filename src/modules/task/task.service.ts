@@ -38,6 +38,7 @@ export const createTask = async ({
   projectId,
   workspaceId,
   assignedTo,
+  status,
   priority,
   labels,
   due,
@@ -48,6 +49,7 @@ export const createTask = async ({
   projectId: string;
   workspaceId: string;
   assignedTo?: string;
+  status?: string;
   priority?: TaskPriority;
   labels?: string[];
   due?: string;
@@ -59,6 +61,9 @@ export const createTask = async ({
   const projectKey = (project as any).key ?? "TASK";
   const taskKey    = await getNextTaskKey(projectId, projectKey);
 
+  const validStatuses = ["todo", "in_progress", "done"];
+  const resolvedStatus = status && validStatuses.includes(status) ? status : "todo";
+
   const task = await TaskModel.create({
     key:          taskKey,
     title,
@@ -66,7 +71,7 @@ export const createTask = async ({
     project_id:   projectId,
     workspace_id: workspaceId,
     assigned_to:  assignedTo || undefined,
-    status:       "todo",
+    status:       resolvedStatus,
     priority:     priority ?? "med",
     labels:       labels ?? [],
     due:          due ? new Date(due) : undefined,

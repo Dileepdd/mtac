@@ -12,6 +12,7 @@ export const create = async (req: Request, res: Response, next: NextFunction) =>
     const task = await createTask({
       title:       body.title,
       description: body.description,
+      status:      body.status,
       projectId:   req.params.project_id as string,
       workspaceId: req.workspace.id,
       assignedTo:  body.assigned_to,
